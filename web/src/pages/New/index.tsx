@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Input } from "../../components/Input";
-import { LatLngExpression } from 'leaflet'
+import { LatLngExpression, LeafletMouseEvent, LeafletEvent } from 'leaflet'
 import { TileLayer, Marker } from 'react-leaflet'
 import {
   Button,
@@ -15,6 +15,7 @@ import {
   Section,
 } from "./styles";
 import { categories } from "./categories";
+import { useGetLocation } from "../../hooks/useGetLocation";
 
 export function New() {
 
@@ -22,10 +23,15 @@ export function New() {
     name: '',
     description: '',
     contact: '',
-    category: ''
+    category: '',
+    coords: [0, 0]
   })
 
-  console.log(formValues);
+  const { coords } = useGetLocation();
+
+  if (!coords) {
+    return <h3>Obtendo as coordenadas...</h3>
+  }
 
   return (
     <>
@@ -60,19 +66,31 @@ export function New() {
           <Section>
             Endereço
           </Section>
-          <MapContainer center={{
-            lat: 12,
-            lng: 23
-          } as LatLngExpression}
+
+          <MapContainer
+            center={{ lat: coords[0], lng: coords[1] } as LatLngExpression}
             zoom={13}
-            whenCreated={() => { }}
+            whenReady={(event: LeafletEvent) => {
+              const map = event.target; // Acessando o objeto map a partir do evento
+              console.log('Load map!');
+
+              map.on('click', (event: LeafletMouseEvent) => {
+                setFormValues((prev) => ({
+                  ...prev,
+                  coords: [event.latlng.lat, event.latlng.lng],
+                }));
+              });
+            }}
           >
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
-            <Marker position={[12, 23] as LatLngExpression} />
+
+            <Marker position={[formValues.coords[0], formValues.coords[1]] as LatLngExpression} />
           </MapContainer>
+
+
           <Section>
             Categorias
           </Section>
@@ -80,10 +98,8 @@ export function New() {
             {categories.map((category) => (
               <CategoryBox
                 key={category.key}
-                onClick={() => {
-                  setFormValues((prev) => ({ ...prev, category: category.key }))
-                }}
-                isActive={formValues.category === category.key}
+                onClick={() => setFormValues({ ...formValues, category: category.key })}
+                $isActive={formValues.category === category.key}
               >
                 <CategoryImage src={category.url} />
                 {category.label}
@@ -94,7 +110,7 @@ export function New() {
             <Button type="submit">Salvar</Button>
           </ButtonContainer>
         </Form>
-      </Container>
+      </Container >
     </>
   )
 }
